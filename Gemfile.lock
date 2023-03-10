@@ -1,0 +1,37 @@
+PATH
+  remote: .
+  specs:
+    testlab_sdk_ruby (0.1.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    concurrent-ruby (1.2.2)
+    et-orbi (1.2.7)
+      tzinfo
+    fugit (1.8.1)
+      et-orbi (~> 1, >= 1.2.7)
+      raabro (~> 1.4)
+    httparty (0.21.0)
+      mini_mime (>= 1.0.0)
+      multi_xml (>= 0.5.2)
+    mini_mime (1.1.2)
+    multi_xml (0.6.0)
+    raabro (1.4.0)
+    rake (13.0.6)
+    rufus-scheduler (3.8.2)
+      fugit (~> 1.1, >= 1.1.6)
+    tzinfo (2.0.6)
+      concurrent-ruby (~> 1.0)
+
+PLATFORMS
+  x86_64-linux
+
+DEPENDENCIES
+  httparty
+  rake (~> 13.0)
+  rufus-scheduler
+  testlab_sdk_ruby!
+
+BUNDLED WITH
+   2.4.8
