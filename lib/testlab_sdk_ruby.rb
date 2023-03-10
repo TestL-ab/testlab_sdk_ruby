@@ -13,7 +13,7 @@ class Config
   def connect
     client =
       Client.new({ server_address: @server_address, interval: @interval })
-    client.get_features
+    client.fetch_features
     client.add_default_context
     client.timed_fetch(@interval)
     client

@@ -1,7 +1,6 @@
 require "testlab_sdk_ruby/testlab_feature_logic"
 require "securerandom" # uuid = SecureRandom.uuid
 require "httparty"
-require "rufus-scheduler"
 
 class Client
   attr_accessor :config, :context, :features
@@ -10,6 +9,7 @@ class Client
     @config = config
     @context = nil
     @features = {}
+    @process_thread = nil
   end
 
   def add_default_context
@@ -26,14 +26,17 @@ class Client
   end
 
   def get_feature_value(name)
-    feature = @features.find { |f| f["name"] == name }
+    feature =
+      features["experiments"]
+        .concat(features["toggles"], features["rollouts"])
+        .find { |f| f["name"] == name }
+
     return false unless feature
 
     if feature["type_id"] != 3
       return is_enabled(features, name, context[:user_id])
     else
       enabled = is_enabled(features, name, context[:user_id])
-      # return false unless enabled
       variant = get_variant(features, name, context[:user_id])
       users = get_users
       existing_user =
@@ -41,43 +44,49 @@ class Client
           user["id"] == context[:user_id] && user["variant_id"] == variant["id"]
         end
       if enabled && variant && !existing_user
-        create_user(context[:user_id], variant["id"], context[:ip])
+        create_user(context[:user_id], variant[:id], context[:ip])
       end
       enabled && variant
     end
   end
 
-  def get_features
-    url = "#{config[:server_address]}/api/feature"
-    response = HTTParty.get(url)
-    self.features = response.parsed_response
+  def timed_fetch(interval)
+    disconnect
+
+    @process_thread =
+      Thread.new do
+        loop do
+          fetch_features
+          sleep interval
+        end
+      end
   end
 
-  def timed_fetch(interval)
-    if interval > 0
-      scheduler = Rufus::Scheduler.new
-      scheduler.every "#{interval}.s" do
-        fetch_features
-      end
-      Thread.new { scheduler.join }
-    end
+  def disconnect
+    # Stop the previous process if it exists
+    @process_thread&.kill
   end
 
   def fetch_features
-    url = "#{config[:server_address]}/api/feature"
-    last_modified = Time.now - config[:interval]
+    url = "#{config[:server_address]}/api/feature/current"
 
-    response =
-      HTTParty.get(
-        url,
-        options: {
-          headers: {
-            "If-Modified-Since" => last_modified.rfc2822,
+    if features
+      last_modified = Time.now - config[:interval]
+
+      response =
+        HTTParty.get(
+          url,
+          options: {
+            headers: {
+              "If-Modified-Since" => last_modified.rfc2822,
+            },
           },
-        },
-      )
-    puts response.parsed_response
-    self.features = response.parsed_response if response.code == 200
+        )
+      self.features = response.parsed_response if response.code == 200
+    else
+      response = HTTParty.get(url)
+      self.features = response.parsed_response
+    end
   end
 
   def get_users
@@ -132,9 +141,3 @@ class Client
     end
   end
 end
-
-# myClient = Client.new({ server_address: "http://localhost:3000", interval: 10 })
-# myClient.add_default_context
-# myClient.get_features
-# puts myClient.context[:user_id]
-# puts myClient.get_feature_value("new_experiment")
