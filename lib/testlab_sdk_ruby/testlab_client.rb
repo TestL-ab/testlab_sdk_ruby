@@ -70,16 +70,14 @@ class Client
   def fetch_features
     url = "#{config[:server_address]}/api/feature/current"
 
-    if features
+    if not features.empty?
       last_modified = Time.now - config[:interval]
 
       response =
         HTTParty.get(
           url,
-          options: {
-            headers: {
-              "If-Modified-Since" => last_modified.rfc2822,
-            },
+          headers: {
+            "If-Modified-Since" => last_modified.httpdate,
           },
         )
       self.features = response.parsed_response if response.code == 200
